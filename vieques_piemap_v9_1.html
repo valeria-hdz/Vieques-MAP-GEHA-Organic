@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vieques Sediment Chemistry — Spatial Map</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#061B2E; color:#E8F4F8; font-family:'Segoe UI',system-ui,sans-serif; min-height:100vh; display:flex; flex-direction:column; }
+  header { padding:12px 22px 8px; border-bottom:1px solid rgba(42,157,143,0.22); display:flex; align-items:baseline; gap:16px; }
+  header h1 { font-size:1.0rem; font-weight:700; color:#fff; flex-shrink:0; }
+  header p { font-size:0.70rem; color:#7BA7BA; }
+  .controls { display:flex; gap:5px; padding:7px 22px; align-items:center; flex-wrap:wrap; background:rgba(0,0,0,0.18); border-bottom:1px solid rgba(255,255,255,0.05); }
+  .clabel { font-size:0.70rem; color:#7BA7BA; white-space:nowrap; }
+  .btn { padding:3px 11px; border-radius:14px; border:1px solid rgba(255,255,255,0.16); background:transparent; color:#A8C8D4; font-size:0.70rem; cursor:pointer; transition:all 0.15s; white-space:nowrap; }
+  .btn:hover { border-color:#2A9D8F; color:#fff; }
+  .btn.active { background:#2A9D8F; border-color:#2A9D8F; color:#fff; font-weight:600; }
+  .divider { width:1px; height:18px; background:rgba(255,255,255,0.08); margin:0 3px; }
+  .main { display:flex; flex:1; min-height:0; }
+  #mapwrap { flex:1; position:relative; min-width:0; }
+  svg#map { width:100%; height:100%; display:block; }
+  .panel { width:195px; flex-shrink:0; border-left:1px solid rgba(42,157,143,0.15); padding:10px 10px; display:flex; flex-direction:column; gap:10px; overflow-y:auto; background:rgba(0,0,0,0.12); }
+  .lt { font-size:0.65rem; font-weight:700; color:#6A9AAE; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:2px; }
+  .lr { display:flex; align-items:center; gap:6px; font-size:0.70rem; color:#A8C8D4; margin-bottom:3px; }
+  .dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .sq { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
+  .card { background:rgba(42,157,143,0.07); border:1px solid rgba(42,157,143,0.16); border-radius:5px; padding:7px 8px; font-size:0.68rem; color:#6A9AAE; line-height:1.5; }
+  .card strong { color:#2A9D8F; }
+  #detail { min-height:50px; }
+  .tt { position:fixed; background:rgba(4,14,26,0.97); border:1px solid rgba(42,157,143,0.5); border-radius:7px; padding:10px 12px; font-size:0.70rem; color:#E8F4F8; pointer-events:none; display:none; z-index:9999; max-width:220px; box-shadow:0 6px 24px rgba(0,0,0,0.6); }
+  .tt h3 { font-size:0.80rem; color:#fff; margin-bottom:5px; padding-bottom:3px; border-bottom:1px solid rgba(255,255,255,0.09); }
+  .tr { display:flex; justify-content:space-between; gap:8px; margin-bottom:2px; }
+  .tl { color:#6A9AAE; } .tv { color:#E8F4F8; font-weight:600; }
+  .tcl { display:flex; align-items:center; gap:4px; margin-bottom:2px; font-size:0.67rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Vieques, Puerto Rico — Sediment Contamination</h1>
+  <p>Pie size = compound count · Slices = contaminant class · Ring = toxicity tier · Gold dot = OM &gt;15%</p>
+</header>
+
+<div class="controls">
+  <span class="clabel">Chemistry:</span>
+  <button class="btn active" data-view="combined">All Classes</button>
+  <button class="btn" data-view="fluorinated">Fluorinated</button>
+  <button class="btn" data-view="nitro">Nitroaromatic</button>
+  <button class="btn" data-view="pah">PAH</button>
+  <button class="btn" data-view="halogenated">Halogenated</button>
+  <div class="divider"></div>
+  <span class="clabel">Single variable:</span>
+  
+  <button class="btn" data-view="arsenic">Arsenic (As)</button>
+  <button class="btn" data-view="om">Org. Matter %</button>
+  <button class="btn" data-view="mortality">96hr Mortality</button>
+</div>
+
+<div class="main">
+  <div id="mapwrap">
+    <svg id="map" viewBox="0 0 760 300" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+  <div class="panel">
+    <div>
+      <div class="lt">Contaminant Class</div>
+      <div class="lr"><div class="dot" style="background:#2A9D8F"></div>Fluorinated (PFAS)</div>
+      <div class="lr"><div class="dot" style="background:#E9C46A"></div>PAH</div>
+      <div class="lr"><div class="dot" style="background:#E76F51"></div>Nitroaromatic</div>
+      <div class="lr"><div class="dot" style="background:#8E7CC3"></div>Halogenated</div>
+      <div class="lr"><div class="dot" style="background:#A8DADC"></div>Aldehyde</div>
+      <div class="lr"><div class="dot" style="background:#95D5B2"></div>Carboxylic acid</div>
+      <div class="lr"><div class="dot" style="background:#F4A261"></div>Other</div>
+    </div>
+    <div>
+      <div class="lt">Toxicity Tier (ring)</div>
+      <div class="lr"><div class="sq" style="background:#C0392B"></div>Tier 1 — Hotspot</div>
+      <div class="lr"><div class="sq" style="background:#E67E22"></div>Tier 2 — High concern</div>
+      <div class="lr"><div class="sq" style="background:#2A9D8F"></div>Tier 3 — Concern</div>
+      <div class="lr"><div class="sq" style="background:#4A5568"></div>Reference</div>
+    </div>
+    <div class="card">Pie size = total organic compound count (GC-MS semiquantitative). Range 8–23 compounds per site.</div>
+    <div>
+      <div class="lt">Arsenic (As) view</div>
+      <div class="lr"><div class="sq" style="background:#C0392B"></div>≥8 µg/g — ISNC-level</div>
+      <div class="lr"><div class="sq" style="background:#E67E22"></div>5–7.9 µg/g</div>
+      <div class="lr"><div class="sq" style="background:#E9C46A"></div>3–4.9 µg/g</div>
+      <div class="lr"><div class="sq" style="background:#2A9D8F"></div>&lt;3 µg/g</div>
+      <div class="lr" style="font-size:0.63rem;color:#5A8A9E;font-style:italic">UCC baseline ~4.8 µg/g<br>Ring = toxicity tier</div>
+    </div>
+    <div class="card" id="detail">Hover a site for details</div>
+  </div>
+</div>
+
+<div class="tt" id="tt"></div>
+
+<script>
+// ── REAL ISLAND OUTLINE from valeria-hdz.github.io/Vieques-MAP-GEHA ──────────
+// [lat, lon] pairs — exact coordinates from your published map
+const OUTLINE_LATLON = [[18.16267,-65.39852],[18.1617,-65.39078],[18.16017,-65.38895],[18.16043,-65.3812],[18.15818,-65.37891],[18.15738,-65.37386],[18.15815,-65.36574],[18.15337,-65.36055],[18.15453,-65.35679],[18.15598,-65.35622],[18.15152,-65.34883],[18.14914,-65.3404],[18.14933,-65.33543],[18.1465,-65.33097],[18.14704,-65.32918],[18.14864,-65.32924],[18.14956,-65.32475],[18.14651,-65.32129],[18.14468,-65.31534],[18.1442,-65.31059],[18.14539,-65.30831],[18.14124,-65.30385],[18.14193,-65.30126],[18.14397,-65.3014],[18.14285,-65.29517],[18.14528,-65.29427],[18.14582,-65.29141],[18.14833,-65.28832],[18.14704,-65.28871],[18.14639,-65.28705],[18.1446,-65.28654],[18.14504,-65.28324],[18.13917,-65.27986],[18.13889,-65.27736],[18.13697,-65.27793],[18.13441,-65.27532],[18.13545,-65.26766],[18.13423,-65.26737],[18.13311,-65.27102],[18.12993,-65.27271],[18.1319,-65.27612],[18.13302,-65.2833],[18.13108,-65.2867],[18.13011,-65.29277],[18.12734,-65.29576],[18.12955,-65.29577],[18.13531,-65.29984],[18.13429,-65.30236],[18.13586,-65.30445],[18.13479,-65.30523],[18.13546,-65.30683],[18.13158,-65.3106],[18.12872,-65.3096],[18.12825,-65.30703],[18.12623,-65.30879],[18.12562,-65.31536],[18.12358,-65.31654],[18.12673,-65.31928],[18.12663,-65.32307],[18.12389,-65.32761],[18.12085,-65.32788],[18.1224,-65.3302],[18.12536,-65.33085],[18.12575,-65.33362],[18.12422,-65.33492],[18.12174,-65.33397],[18.12032,-65.33573],[18.1174,-65.33375],[18.12028,-65.33832],[18.11891,-65.33888],[18.11491,-65.33677],[18.11374,-65.33925],[18.11542,-65.33926],[18.1161,-65.3411],[18.11124,-65.34228],[18.1127,-65.34611],[18.1107,-65.34661],[18.11273,-65.34982],[18.11178,-65.35168],[18.11409,-65.35314],[18.11322,-65.35192],[18.11629,-65.34589],[18.11538,-65.34275],[18.11697,-65.34359],[18.11854,-65.34026],[18.12291,-65.33986],[18.12365,-65.33652],[18.12435,-65.33993],[18.12354,-65.33846],[18.12313,-65.34],[18.12065,-65.34015],[18.12053,-65.3444],[18.12125,-65.34518],[18.12398,-65.34317],[18.12138,-65.34674],[18.12444,-65.34649],[18.12197,-65.34873],[18.12288,-65.35077],[18.12629,-65.34935],[18.12455,-65.35314],[18.12602,-65.35356],[18.12482,-65.35479],[18.12699,-65.35662],[18.12605,-65.3584],[18.1307,-65.36236],[18.12881,-65.36514],[18.12594,-65.36401],[18.12503,-65.36635],[18.12051,-65.3649],[18.12471,-65.36795],[18.12364,-65.37522],[18.12004,-65.37496],[18.11694,-65.37252],[18.11618,-65.37333],[18.11746,-65.37387],[18.11753,-65.37581],[18.11453,-65.37737],[18.11305,-65.37665],[18.11134,-65.37764],[18.10781,-65.37469],[18.1068,-65.37527],[18.1082,-65.37817],[18.11042,-65.37808],[18.11252,-65.38189],[18.11215,-65.39105],[18.10944,-65.39299],[18.10739,-65.39285],[18.11101,-65.39751],[18.1085,-65.3999],[18.11126,-65.40125],[18.10865,-65.40325],[18.10844,-65.40545],[18.11336,-65.40579],[18.11379,-65.4089],[18.11153,-65.41086],[18.10756,-65.4077],[18.10608,-65.41199],[18.1081,-65.41244],[18.1086,-65.41485],[18.10636,-65.41836],[18.10264,-65.4169],[18.10131,-65.41889],[18.10192,-65.42131],[18.10801,-65.4254],[18.10772,-65.42406],[18.11153,-65.42419],[18.11204,-65.4252],[18.11095,-65.42557],[18.11234,-65.42642],[18.11101,-65.42631],[18.11063,-65.42816],[18.11233,-65.4282],[18.11058,-65.42875],[18.11047,-65.43131],[18.10912,-65.43158],[18.10971,-65.43236],[18.10667,-65.43602],[18.10537,-65.43089],[18.10405,-65.4309],[18.10402,-65.42691],[18.10158,-65.42549],[18.09965,-65.42197],[18.09786,-65.42394],[18.0961,-65.42321],[18.09397,-65.42632],[18.09482,-65.42739],[18.09336,-65.42954],[18.09437,-65.43105],[18.09272,-65.43183],[18.09176,-65.43807],[18.0936,-65.44017],[18.09615,-65.43919],[18.1009,-65.4414],[18.10068,-65.43979],[18.1044,-65.44009],[18.10463,-65.44866],[18.10297,-65.45126],[18.09977,-65.4502],[18.09916,-65.45152],[18.10004,-65.44703],[18.09776,-65.44044],[18.09469,-65.44291],[18.09268,-65.44248],[18.0916,-65.44498],[18.08903,-65.44523],[18.08913,-65.44713],[18.08742,-65.44869],[18.0908,-65.44907],[18.0907,-65.4517],[18.08671,-65.45054],[18.08635,-65.45166],[18.08768,-65.45689],[18.09334,-65.45407],[18.09655,-65.45859],[18.09665,-65.46435],[18.09468,-65.46769],[18.09241,-65.46837],[18.08954,-65.4655],[18.08774,-65.46663],[18.08964,-65.46903],[18.09144,-65.46767],[18.0931,-65.46911],[18.0966,-65.48077],[18.0944,-65.48909],[18.09577,-65.49217],[18.09122,-65.5098],[18.08209,-65.52424],[18.08224,-65.53038],[18.0804,-65.53274],[18.0823,-65.53766],[18.08119,-65.54181],[18.08465,-65.55044],[18.08594,-65.55909],[18.08816,-65.56062],[18.08914,-65.56555],[18.09059,-65.56603],[18.09178,-65.56946],[18.09836,-65.57103],[18.10252,-65.57768],[18.11089,-65.57521],[18.11619,-65.57558],[18.11979,-65.5778],[18.11863,-65.57102],[18.12049,-65.56738],[18.11949,-65.54563],[18.12784,-65.52483],[18.12912,-65.51642],[18.13232,-65.51202],[18.15133,-65.51379],[18.1341,-65.5118],[18.13374,-65.50709],[18.13478,-65.50346],[18.13641,-65.50337],[18.13524,-65.49708],[18.13692,-65.48677],[18.13955,-65.48351],[18.1412,-65.476],[18.14314,-65.4729],[18.14603,-65.45675],[18.14625,-65.44825],[18.14804,-65.44475],[18.15087,-65.44316],[18.15516,-65.44383],[18.15803,-65.43735],[18.15878,-65.42168],[18.16083,-65.40971],[18.16009,-65.40877],[18.16149,-65.40581],[18.16125,-65.40034],[18.16267,-65.39852]];
+
+// ── SITES — exact coords from your published map + full chemistry data ────────
+const SITES_RAW = [
+  {id:'LBQ1',loc:'LBQ',name:'Laguna Boca Quebrada',z:1,tier:1,lat:18.10559,lon:-65.5752,mort96:100,om:32.66,cu:4,ni:1.3,zn:20,co:0.8,mn_b:309.16,cu_b:43.26,ni_b:4.57,as_b:3.08,as:3.08,dil:1,fl:8,pah:5,nit:0,hal:1,ald:1,ca:0,oth:0},
+  {id:'LBQ2',loc:'LBQ',name:'Laguna Boca Quebrada',z:1,tier:1,lat:18.10394,lon:-65.5749,mort96:100,om:32.78,cu:2,ni:0.6,zn:3,co:1.0,mn_b:234.66,cu_b:15.28,ni_b:2.81,as_b:4.42,as:4.42,dil:1,fl:8,pah:4,nit:0,hal:1,ald:1,ca:0,oth:1},
+  {id:'LBQ3',loc:'LBQ',name:'Laguna Boca Quebrada',z:1,tier:1,lat:18.10248,lon:-65.5739,mort96:100,om:29.02,cu:1,ni:0.3,zn:2,co:0.2,mn_b:143.15,cu_b:11.41,ni_b:2.11,as_b:3.48,as:3.48,dil:1,fl:9,pah:4,nit:0,hal:0,ald:0,ca:0,oth:1},
+  {id:'LKI1',loc:'LKI',name:'Lagoon Kiani',z:1,tier:2,lat:18.11649,lon:-65.5616,mort96:95,om:11.73,cu:17,ni:2.0,zn:17,co:0.3,mn_b:129.55,cu_b:14.42,ni_b:2.8,as_b:4.25,as:4.25,dil:1,fl:7,pah:4,nit:0,hal:2,ald:2,ca:0,oth:0},
+  {id:'LKI2',loc:'LKI',name:'Lagoon Kiani',z:1,tier:3,lat:18.11554,lon:-65.5627,mort96:35,om:27.58,cu:18,ni:3.4,zn:27,co:9.0,mn_b:265.85,cu_b:29.19,ni_b:5.72,as_b:5.1,as:5.1,dil:0,fl:8,pah:5,nit:1,hal:2,ald:1,ca:0,oth:1},
+  {id:'LKI3',loc:'LKI',name:'Lagoon Kiani',z:1,tier:4,lat:18.11665,lon:-65.5603,mort96:10,om:22.25,cu:27,ni:7.3,zn:41,co:11.0,mn_b:195.74,cu_b:8.76,ni_b:1.23,as_b:0.61,as:0.61,dil:0,fl:6,pah:4,nit:0,hal:2,ald:2,ca:0,oth:1},
+  {id:'LPG1',loc:'LPG',name:'Lagoon Playa Grande',z:1,tier:4,lat:18.09092,lon:-65.5134,mort96:3,om:6.24,cu:8,ni:1.5,zn:6.5,co:3.0,mn_b:148.5,cu_b:11.67,ni_b:1.7,as_b:1.84,as:1.84,dil:1,fl:7,pah:4,nit:0,hal:1,ald:1,ca:0,oth:0},
+  {id:'LPG2',loc:'LPG',name:'Lagoon Playa Grande',z:1,tier:2,lat:18.08657,lon:-65.5198,mort96:100,om:21.78,cu:40,ni:4.2,zn:57.6,co:5.0,mn_b:1009.01,cu_b:47.42,ni_b:4.71,as_b:1.6,as:1.6,dil:1,fl:7,pah:5,nit:0,hal:2,ald:1,ca:0,oth:1},
+  {id:'LPG3',loc:'LPG',name:'Lagoon Playa Grande',z:1,tier:4,lat:18.09025,lon:-65.513,mort96:20,om:1.04,cu:2,ni:2.1,zn:0,co:2.0,mn_b:24.31,cu_b:2.28,ni_b:0.51,as_b:1.09,as:1.09,dil:1,fl:6,pah:3,nit:0,hal:2,ald:1,ca:0,oth:1},
+  {id:'ESZB1',loc:'ESZB',name:'Esperanza Beach',z:2,tier:4,lat:18.09494,lon:-65.4731,mort96:30,om:1.86,cu:1.3,ni:1.6,zn:0,co:1.0,mn_b:90.23,cu_b:4.27,ni_b:1.52,as_b:2.29,as:2.29,dil:0,fl:6,pah:2,nit:0,hal:1,ald:1,ca:0,oth:1},
+  {id:'ESZB2',loc:'ESZB',name:'Esperanza Beach',z:2,tier:4,lat:18.09407,lon:-65.4711,mort96:25,om:1.8,cu:27,ni:4.2,zn:2,co:4.0,mn_b:75.1,cu_b:2.85,ni_b:0.92,as_b:1.52,as:1.52,dil:0,fl:6,pah:2,nit:0,hal:1,ald:1,ca:0,oth:0},
+  {id:'ESZB3',loc:'ESZB',name:'Esperanza Beach',z:2,tier:4,lat:18.09239,lon:-65.4684,mort96:42,om:8.68,cu:48,ni:2.8,zn:25,co:10.2,mn_b:110.84,cu_b:1.25,ni_b:0.4,as_b:1.26,as:1.26,dil:0,fl:6,pah:2,nit:0,hal:1,ald:1,ca:1,oth:0},
+  {id:'MB1',loc:'MB',name:'Mosquito Bay',z:2,tier:2,lat:18.10384,lon:-65.4516,mort96:100,om:2.32,cu:7,ni:3.8,zn:7,co:2.0,mn_b:92.92,cu_b:46.62,ni_b:1.54,as_b:1.07,as:1.07,dil:0,fl:6,pah:3,nit:0,hal:1,ald:1,ca:0,oth:0},
+  {id:'MB2',loc:'MB',name:'Mosquito Bay',z:2,tier:2,lat:18.09959,lon:-65.4456,mort96:75,om:2.39,cu:3.4,ni:2.3,zn:1,co:6.0,mn_b:111.34,cu_b:18.11,ni_b:2.61,as_b:6.23,as:6.23,dil:1,fl:6,pah:3,nit:0,hal:1,ald:1,ca:0,oth:0},
+  {id:'SLSB1',loc:'SLSB',name:'Laguna Sombe',z:2,tier:4,lat:18.09578,lon:-65.467,mort96:40,om:4.32,cu:11,ni:1.7,zn:13,co:4.7,mn_b:0,cu_b:0,ni_b:0,as_b:0,as:0,dil:0,fl:6,pah:2,nit:1,hal:1,ald:2,ca:1,oth:0},
+  {id:'SLSB2',loc:'SLSB',name:'Laguna Sombe',z:2,tier:2,lat:18.1021,lon:-65.4579,mort96:100,om:3.95,cu:12,ni:4.1,zn:8,co:0.5,mn_b:700.58,cu_b:24.36,ni_b:2.62,as_b:1.24,as:1.24,dil:1,fl:7,pah:3,nit:2,hal:2,ald:1,ca:1,oth:0},
+  {id:'SLSB3',loc:'SLSB',name:'Laguna Sombe',z:2,tier:3,lat:18.10448,lon:-65.4556,mort96:75,om:13.77,cu:14,ni:3.1,zn:28,co:3.0,mn_b:299.69,cu_b:33.76,ni_b:7.38,as_b:5.85,as:5.85,dil:0,fl:6,pah:2,nit:6,hal:3,ald:2,ca:4,oth:0},
+  {id:'ISNC1',loc:'ISNC',name:'Isabel II',z:3,tier:3,lat:18.14784,lon:-65.445,mort96:12,om:20.33,cu:12,ni:4.2,zn:2,co:2.0,mn_b:272.62,cu_b:17.85,ni_b:3.71,as_b:9.94,as:9.94,dil:0,fl:5,pah:2,nit:1,hal:2,ald:1,ca:3,oth:0},
+  {id:'ISNC2',loc:'ISNC',name:'Isabel II',z:3,tier:3,lat:18.15114,lon:-65.443,mort96:2,om:20.1,cu:14,ni:4.3,zn:1.8,co:2.0,mn_b:160.1,cu_b:11.79,ni_b:3.07,as_b:9.26,as:9.26,dil:0,fl:5,pah:2,nit:1,hal:1,ald:1,ca:3,oth:0},
+  {id:'ISNC3',loc:'ISNC',name:'Isabel II',z:3,tier:3,lat:18.1527,lon:-65.443,mort96:97,om:19.8,cu:12.8,ni:3.7,zn:1.5,co:3.0,mn_b:130.19,cu_b:7.03,ni_b:2.52,as_b:5.66,as:5.66,dil:1,fl:5,pah:2,nit:2,hal:1,ald:1,ca:3,oth:0},
+  {id:'LALG1',loc:'LALG',name:'Laguna Algodones',z:3,tier:1,lat:18.15665,lon:-65.3738,mort96:100,om:1.51,cu:13,ni:4.8,zn:35,co:6.0,mn_b:870.56,cu_b:30.18,ni_b:9.62,as_b:1.56,as:1.56,dil:1,fl:8,pah:3,nit:0,hal:2,ald:1,ca:2,oth:0},
+  {id:'LALG2',loc:'LALG',name:'Laguna Algodones',z:3,tier:1,lat:18.15663,lon:-65.3741,mort96:100,om:1.95,cu:12.3,ni:4.8,zn:40,co:3.0,mn_b:1116.53,cu_b:35.44,ni_b:8.9,as_b:1.26,as:1.26,dil:1,fl:10,pah:3,nit:0,hal:1,ald:1,ca:2,oth:0},
+  {id:'LALG3',loc:'LALG',name:'Laguna Algodones',z:3,tier:1,lat:18.15663,lon:-65.3742,mort96:100,om:2.97,cu:7.9,ni:4.1,zn:29,co:6.0,mn_b:1226.72,cu_b:36.41,ni_b:10.76,as_b:2.1,as:2.1,dil:1,fl:7,pah:3,nit:0,hal:1,ald:1,ca:2,oth:0},
+  {id:'BBSS1',loc:'BBSS',name:'Bahía Salinas del Sur',z:4,tier:4,lat:18.13404,lon:-65.2983,mort96:12,om:3.21,cu:21,ni:0.3,zn:4,co:0.4,mn_b:72.41,cu_b:3.25,ni_b:1.38,as_b:3.92,as:3.92,dil:0,fl:6,pah:2,nit:0,hal:1,ald:1,ca:0,oth:1},
+  {id:'BBSS2',loc:'BBSS',name:'Bahía Salinas del Sur',z:4,tier:4,lat:18.13531,lon:-65.2997,mort96:10,om:3.9,cu:57,ni:1.5,zn:4,co:0.2,mn_b:57.68,cu_b:2.1,ni_b:0.88,as_b:3.01,as:3.01,dil:0,fl:5,pah:2,nit:0,hal:1,ald:1,ca:0,oth:1},
+  {id:'BBSS3',loc:'BBSS',name:'Bahía Salinas del Sur',z:4,tier:4,lat:18.13558,lon:-65.3011,mort96:20,om:3.74,cu:1.9,ni:0.8,zn:4,co:1.0,mn_b:54.54,cu_b:2.65,ni_b:0.95,as_b:3.16,as:3.16,dil:0,fl:6,pah:2,nit:0,hal:1,ald:1,ca:0,oth:1},
+  {id:'LAN1',loc:'LAN',name:'Laguna Anones',z:4,tier:1,lat:18.13738,lon:-65.2975,mort96:100,om:31.23,cu:1.4,ni:0,zn:5,co:1.0,mn_b:272.37,cu_b:26.52,ni_b:5.57,as_b:2.93,as:2.93,dil:1,fl:7,pah:3,nit:0,hal:1,ald:1,ca:1,oth:0},
+  {id:'LAN2',loc:'LAN',name:'Laguna Anones',z:4,tier:1,lat:18.13578,lon:-65.298,mort96:100,om:16.75,cu:1.3,ni:0,zn:19,co:1.0,mn_b:0,cu_b:0,ni_b:5.79,as_b:5.68,as:5.68,dil:1,fl:7,pah:3,nit:0,hal:1,ald:1,ca:1,oth:0},
+  {id:'LAN3',loc:'LAN',name:'Laguna Anones',z:4,tier:4,lat:18.13442,lon:-65.2973,mort96:100,om:6.06,cu:3,ni:0,zn:0,co:2.0,mn_b:107.14,cu_b:10.39,ni_b:1.74,as_b:2.25,as:2.25,dil:1,fl:6,pah:3,nit:0,hal:1,ald:1,ca:1,oth:1},
+];
+// ── GROUP replicates into locations — average numeric fields, use worst tier ──
+const CLS = ['fl','pah','nit','hal','ald','ca','oth'];
+const NUM = ['mort96','om','cu','ni','zn','co','mn_b','cu_b','ni_b','as_b','as','fl','pah','nit','hal','ald','ca','oth'];
+
+function avg(arr){ return arr.reduce((a,b)=>a+b,0)/arr.length; }
+
+const locGroups = {};
+SITES_RAW.forEach(s=>{
+  if(!locGroups[s.loc]) locGroups[s.loc]={reps:[], loc:s.loc, name:s.name, z:s.z};
+  locGroups[s.loc].reps.push(s);
+});
+
+const SITES = Object.values(locGroups).map(g=>{
+  const reps = g.reps;
+  const merged = {loc:g.loc, name:g.name, z:g.z, reps:reps};
+  // position: centroid of replicates
+  merged.lat = avg(reps.map(r=>r.lat));
+  merged.lon = avg(reps.map(r=>r.lon));
+  // worst (highest) tier number = lowest priority tier — use MIN for worst risk
+  merged.tier = Math.min(...reps.map(r=>r.tier));
+  // average numerics
+  NUM.forEach(k=>{ merged[k] = Math.round(avg(reps.map(r=>r[k]||0))*100)/100; });
+  merged.dilCount = g.reps.filter(r=>r.dil===1).length;
+  merged.nodilCount = g.reps.filter(r=>r.dil===0).length;
+  return merged;
+});
+
+// ── CONSTANTS ─────────────────────────────────────────────────────────────────
+// CLS and NUM already defined above in SITES_RAW block
+const CNAME  = {fl:'Fluorinated',pah:'PAH',nit:'Nitroaromatic',hal:'Halogenated',ald:'Aldehyde',ca:'Carboxylic acid',oth:'Other'};
+const CCOL   = {fl:'#2A9D8F',pah:'#E9C46A',nit:'#E76F51',hal:'#8E7CC3',ald:'#A8DADC',ca:'#95D5B2',oth:'#F4A261'};
+const TCOL   = {1:'#C0392B',2:'#E67E22',3:'#2A9D8F',4:'#4A5568'};
+const TLAB   = {1:'Tier 1',2:'Tier 2',3:'Tier 3',4:'Reference'};
+
+// ── PROJECTION — matches your map: lat/lon → SVG x/y ─────────────────────────
+const VW=760, VH=300, PL=28, PR=18, PT=25, PB=22;
+const allLats = [...OUTLINE_LATLON.map(p=>p[0]), ...SITES.map(s=>s.lat)];
+const allLons = [...OUTLINE_LATLON.map(p=>p[1]), ...SITES.map(s=>s.lon)];
+const latMin=Math.min(...allLats)-0.002, latMax=Math.max(...allLats)+0.002;
+const lonMin=Math.min(...allLons)-0.004, lonMax=Math.max(...allLons)+0.004;
+
+function proj(lat,lon){
+  const x = PL + (lon-lonMin)/(lonMax-lonMin)*(VW-PL-PR);
+  const y = (VH-PB) - (lat-latMin)/(latMax-latMin)*(VH-PT-PB);
+  return [+x.toFixed(2), +y.toFixed(2)];
+}
+
+function getR(s, view){
+  if(['combined','fluorinated','nitro','pah','halogenated'].includes(view)){
+    const tot = CLS.reduce((a,k)=>a+s[k],0);
+    return 9 + (tot-8)/(23-8)*16;
+  }
+  if(view==='arsenic') return 8+((s.as||0)/12)*19;
+  if(view==='om')       return 8 + (s.om/35)*19;
+  if(view==='mortality')return 8 + (s.mort96/100)*19;
+  return 14;
+}
+
+// ── SVG HELPERS ───────────────────────────────────────────────────────────────
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag,a={}){ const e=document.createElementNS(NS,tag); for(const[k,v] of Object.entries(a)) e.setAttribute(k,v); return e; }
+
+function arcPath(cx,cy,r,a0,a1){
+  const p=Math.PI/180;
+  const x1=cx+r*Math.cos(a0*p), y1=cy+r*Math.sin(a0*p);
+  const x2=cx+r*Math.cos(a1*p), y2=cy+r*Math.sin(a1*p);
+  if(Math.abs(a1-a0)>=359.9) return `M${cx+r},${cy}A${r},${r},0,1,1,${cx+r-0.01},${cy}Z`;
+  return `M${cx},${cy}L${x1},${y1}A${r},${r},0,${(a1-a0)>180?1:0},1,${x2},${y2}Z`;
+}
+
+function mortColor(m){ return m>=80?'#C0392B':m>=40?'#E67E22':m>=15?'#E9C46A':'#2A9D8F'; }
+function omColor(v){   return v>=25?'#C0392B':v>=15?'#E67E22':v>=5?'#E9C46A':'#2A9D8F'; }
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function render(view){
+  const svg = document.getElementById('map');
+  svg.innerHTML = '';
+
+  // Ocean background
+  svg.appendChild(el('rect',{x:0,y:0,width:VW,height:VH,fill:'#0A2540',rx:'4'}));
+
+  // Water labels
+  const atl=el('text',{x:VW/2,y:16,'text-anchor':'middle',fill:'rgba(100,160,190,0.5)','font-size':'8','font-style':'italic','font-family':'Segoe UI'});
+  atl.textContent='Atlantic Ocean'; svg.appendChild(atl);
+  const car=el('text',{x:VW/2,y:VH-5,'text-anchor':'middle',fill:'rgba(100,160,190,0.5)','font-size':'8','font-style':'italic','font-family':'Segoe UI'});
+  car.textContent='Caribbean Sea'; svg.appendChild(car);
+
+  // Island — exact shape from your published map
+  const islandPts = OUTLINE_LATLON.map(p=>proj(p[0],p[1]).join(',')).join(' ');
+  svg.appendChild(el('polygon',{points:islandPts,fill:'#1A3A28',stroke:'#2A9D8F','stroke-width':'0.8',opacity:'0.9'}));
+
+  // Scale bar
+  const [sx1,sy]=proj(18.085,-65.56), [sx2]=proj(18.085,-65.47); // ~10km
+  svg.appendChild(el('line',{x1:sx1,y1:sy+8,x2:sx2,y2:sy+8,stroke:'rgba(200,220,230,0.5)','stroke-width':'1.2'}));
+  svg.appendChild(el('line',{x1:sx1,y1:sy+5,x2:sx1,y2:sy+11,stroke:'rgba(200,220,230,0.5)','stroke-width':'1'}));
+  svg.appendChild(el('line',{x1:sx2,y1:sy+5,x2:sx2,y2:sy+11,stroke:'rgba(200,220,230,0.5)','stroke-width':'1'}));
+  const scLbl=el('text',{x:(sx1+sx2)/2,y:sy+20,'text-anchor':'middle',fill:'rgba(180,200,210,0.5)','font-size':'7','font-family':'Segoe UI'});
+  scLbl.textContent='~10 km'; svg.appendChild(scLbl);
+
+  // North arrow
+  const [nx,ny]=proj(18.155,-65.58);
+  const nArr=el('text',{x:nx,y:ny,'text-anchor':'middle',fill:'rgba(200,220,230,0.55)','font-size':'9','font-weight':'700','font-family':'Segoe UI'});
+  nArr.textContent='N↑'; svg.appendChild(nArr);
+
+  // ── SITES ──
+  SITES.forEach(s=>{
+    const [cx,cy] = proj(s.lat, s.lon);
+    const r = getR(s, view);
+    const g = el('g',{cursor:'pointer'});
+
+    if(view==='mortality'){
+      const col=mortColor(s.mort96);
+      g.appendChild(el('circle',{cx,cy,r,fill:col,opacity:'0.88',stroke:'rgba(0,0,0,0.3)','stroke-width':'0.6'}));
+      if(s.mort96>=80){
+        const t=el('text',{x:cx,y:cy+1.2,'text-anchor':'middle',fill:'rgba(255,255,255,0.95)','font-size':'7','font-weight':'700','pointer-events':'none','font-family':'Segoe UI'});
+        t.textContent=s.mort96+'%'; g.appendChild(t);
+      }
+    } else if(view==='om'){
+      const col=omColor(s.om);
+      g.appendChild(el('circle',{cx,cy,r,fill:col,opacity:'0.88',stroke:'rgba(0,0,0,0.3)','stroke-width':'0.6'}));
+      if(s.om>15){
+        const t=el('text',{x:cx,y:cy+1.2,'text-anchor':'middle',fill:'rgba(255,255,255,0.95)','font-size':'7','font-weight':'700','pointer-events':'none','font-family':'Segoe UI'});
+        t.textContent=s.om.toFixed(1)+'%'; g.appendChild(t);
+      }
+        } else {
+      // Pie chart — tier ring + slices
+      g.appendChild(el('circle',{cx,cy,r:r+2.2,fill:'none',stroke:TCOL[s.tier],'stroke-width':'2.2',opacity:'0.88'}));
+
+      let slices;
+      if(view==='combined'){
+        slices=CLS.map(k=>({k,v:s[k]})).filter(x=>x.v>0);
+      } else {
+        const fk = view==='fluorinated'?'fl':view==='nitro'?'nit':view==='pah'?'pah':'hal';
+        const rest=CLS.filter(k=>k!==fk).reduce((sum,k)=>sum+s[k],0);
+        slices=[{k:fk,v:s[fk]},{k:'oth',v:rest}].filter(x=>x.v>0);
+      }
+
+      const tot=slices.reduce((s,x)=>s+x.v,0)||1;
+      let angle=-90;
+      slices.forEach(sl=>{
+        const sweep=(sl.v/tot)*360;
+        g.appendChild(el('path',{
+          d:arcPath(cx,cy,r,angle,angle+sweep),
+          fill:CCOL[sl.k]||'#888',
+          stroke:'#0A2540','stroke-width':'0.4',opacity:'0.93'
+        }));
+        angle+=sweep;
+      });
+    }
+
+    // OM indicator dot
+    if(s.om>15 && !['om','mortality'].includes(view)){
+      g.appendChild(el('circle',{cx:cx+r+2,cy:cy-r,r:'2.2',fill:'#E9A800',opacity:'0.92'}));
+    }
+
+    // Site label
+    const lbl=el('text',{x:cx,y:cy+r+8,'text-anchor':'middle',
+      fill:'rgba(168,200,212,0.82)','font-size':'6.8','font-weight':'600',
+      'font-family':'Segoe UI,system-ui,sans-serif','pointer-events':'none'});
+    lbl.textContent=s.loc; g.appendChild(lbl);
+
+    // Events
+    g.addEventListener('mouseenter', e=>showTT(e,s,view));
+    g.addEventListener('mousemove',  e=>moveTT(e));
+    g.addEventListener('mouseleave', hideTT);
+    svg.appendChild(g);
+  });
+
+  // ── Variable-specific legend ──
+  if(view==='mortality'||view==='om'){
+    const steps=view==='mortality'
+      ?[{c:'#C0392B',l:'≥80%'},{c:'#E67E22',l:'40–79%'},{c:'#E9C46A',l:'15–39%'},{c:'#2A9D8F',l:'<15%'}]
+      :[{c:'#C0392B',l:'>25%'},{c:'#E67E22',l:'15–25%'},{c:'#E9C46A',l:'5–15%'},{c:'#2A9D8F',l:'<5%'}];
+    const label=view==='mortality'?'96hr Mortality':'Organic Matter %';
+    const legX=VW-PR-68, legY=VH-PB-steps.length*14-16;
+    const bg=el('rect',{x:legX-6,y:legY-12,width:76,height:steps.length*14+22,fill:'rgba(4,14,26,0.72)',rx:'4'});
+    svg.appendChild(bg);
+    const lt=el('text',{x:legX,y:legY-2,fill:'rgba(168,200,212,0.7)','font-size':'7.5','font-weight':'700','font-family':'Segoe UI'});
+    lt.textContent=label; svg.appendChild(lt);
+    steps.forEach((s,i)=>{
+      const ly=legY+i*14+10;
+      svg.appendChild(el('rect',{x:legX,y:ly,width:9,height:9,fill:s.c,rx:'2'}));
+      const t=el('text',{x:legX+13,y:ly+8.5,fill:'rgba(168,200,212,0.7)','font-size':'7.5','font-family':'Segoe UI'});
+      t.textContent=s.l; svg.appendChild(t);
+    });
+  }
+
+  if(view==='arsenic'){
+    const steps=[
+      {c:'#C0392B',l:'≥8 µg/g (ISNC)'},
+      {c:'#E67E22',l:'5–7.9 µg/g'},
+      {c:'#E9C46A',l:'3–4.9 µg/g'},
+      {c:'#2A9D8F',l:'<3 µg/g'},
+    ];
+    const legX=VW-PR-90, legY=VH-PB-steps.length*14-16;
+    svg.appendChild(el('rect',{x:legX-6,y:legY-12,width:100,height:steps.length*14+22,fill:'rgba(4,14,26,0.72)',rx:'4'}));
+    const lt=el('text',{x:legX,y:legY-2,fill:'rgba(168,200,212,0.7)','font-size':'7.5','font-weight':'700','font-family':'Segoe UI'});
+    lt.textContent='Arsenic As (µg/g bioavail.)'; svg.appendChild(lt);
+    steps.forEach((s,i)=>{
+      const ly=legY+i*14+10;
+      svg.appendChild(el('rect',{x:legX,y:ly,width:9,height:9,fill:s.c,rx:'2'}));
+      const t=el('text',{x:legX+13,y:ly+8.5,fill:'rgba(168,200,212,0.7)','font-size':'7.5','font-family':'Segoe UI'});
+      t.textContent=s.l; svg.appendChild(t);
+    });
+    const nt=el('text',{x:legX,y:legY+steps.length*14+16,fill:'rgba(168,200,212,0.45)','font-size':'6.5','font-family':'Segoe UI','font-style':'italic'});
+    nt.textContent='Ring = toxicity tier · UCC baseline ~4.8 µg/g'; svg.appendChild(nt);
+  }
+
+
+  // OM dot note
+  if(!['om','mortality','arsenic'].includes(view)){
+    const [ox,oy]=proj(18.083,-65.59);
+    svg.appendChild(el('circle',{cx:ox+4,cy:oy,r:'2.5',fill:'#E9A800',opacity:'0.85'}));
+    const ot=el('text',{x:ox+10,y:oy+4,fill:'rgba(140,180,195,0.5)','font-size':'7','font-family':'Segoe UI'});
+    ot.textContent='OM >15%'; svg.appendChild(ot);
+  }
+}
+
+// ── TOOLTIP ───────────────────────────────────────────────────────────────────
+function showTT(e,s,view){
+  const tt=document.getElementById('tt');
+  const total=CLS.reduce((sum,k)=>sum+s[k],0);
+  const nReps = s.reps ? s.reps.length : 1;
+  let h=`<h3>${s.loc} — ${s.name}</h3>`;
+  h+=`<div style="font-size:0.65rem;color:#6A9AAE;margin-bottom:5px">${nReps} replicates averaged below</div>`;
+  h+=`<div class="tr"><span class="tl">Zone / Tier</span><span class="tv">Zone ${s.z} · <span style="color:${TCOL[s.tier]}">${TLAB[s.tier]}</span></span></div>`;
+  const mortStr = s.reps ? s.reps.map(r=>r.id.slice(-1)+':'+r.mort96+'%').join(' · ') : s.mort96+'%';
+  h+=`<div class="tr"><span class="tl">96hr Mortality</span><span class="tv">${s.mort96.toFixed(0)}% avg</span></div>`;
+  if(s.reps && s.reps.length>1) h+=`<div style="font-size:0.65rem;color:#8ABBC8;margin-bottom:2px;margin-top:-1px">&nbsp;&nbsp;${mortStr}</div>`;
+  h+=`<div class="tr"><span class="tl">Org. matter</span><span class="tv">${s.om}%</span></div>`;
+  h+=`<div class="tr"><span class="tl">Compounds</span><span class="tv">${total}</span></div>`;
+  h+=`<div class="tr"><span class="tl">Cu / Mn / Ni</span><span class="tv">${s.cu} / ${s.mn} / ${s.ni} µg/g</span></div>`;
+  h+=`<div class="tr"><span class="tl">As (bioavail.)</span><span class="tv" style="color:${(s.as||0)>=8?'#E76F51':(s.as||0)>=5?'#E9C46A':'#E8F4F8'}">${s.as||'—'} µg/g</span></div>`;
+  h+=`<div style="border-top:1px solid rgba(255,255,255,0.07);margin:5px 0 3px"></div>`;
+  CLS.filter(k=>s[k]>0).forEach(k=>{
+    const pct=Math.round(s[k]/total*100);
+    h+=`<div class="tcl"><div style="width:7px;height:7px;border-radius:50%;background:${CCOL[k]};flex-shrink:0"></div><span style="color:#6A9AAE">${CNAME[k]}:</span><span style="margin-left:auto">${s[k]} (${pct}%)</span></div>`;
+  });
+  tt.innerHTML=h; tt.style.display='block'; moveTT(e);
+  document.getElementById('detail').innerHTML=
+    `<strong style="color:#2A9D8F">${s.loc}</strong> · ${s.name}<br>`+
+    `<span style="color:${TCOL[s.tier]}">${TLAB[s.tier]}</span> · Zone ${s.z}<br>`+
+    `Mortality (avg): ${s.mort96.toFixed(0)}%<br>`+
+    `OM (avg): ${s.om.toFixed(1)}% · As: ${s.as.toFixed(2)} µg/g`;
+}
+function moveTT(e){
+  const tt=document.getElementById('tt');
+  let x=e.clientX+14, y=e.clientY-10;
+  if(x+230>window.innerWidth)  x=e.clientX-242;
+  if(y+280>window.innerHeight) y=e.clientY-290;
+  tt.style.left=x+'px'; tt.style.top=y+'px';
+}
+function hideTT(){ document.getElementById('tt').style.display='none'; }
+
+// ── CONTROLS ──────────────────────────────────────────────────────────────────
+document.querySelectorAll('.btn').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.btn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    render(b.dataset.view);
+  });
+});
+
+render('combined');
+</script>
+</body>
+</html>
